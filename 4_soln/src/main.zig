@@ -1,11 +1,13 @@
 const std = @import("std");
+const print = std.debug.print;
 
 const testing = false;
 const file_name = if (testing) "test_input.txt" else "input.txt";
 const file_contents = @embedFile(file_name);
 
-const FILE_LEN = 140;
-const FILE_WIDTH = 140;
+const FILE_LEN = if (testing) 10 else 140;
+const FILE_WIDTH = if (testing) 10 else 140;
+const TARGET_LENGTH = 4;
 
 const word = "XMAS";
 const back_word = "SAMX";
@@ -32,49 +34,111 @@ pub fn main() !void {
     { // Solution #1
         var word_count: u32 = 0;
         //  Loop through each character horizontally (left->right) and search for xmas or samx
-        var multi_iterator = try Iterator2D(u8, FILE_LEN, FILE_WIDTH).init(
-            lines,
-            0,
-            0,
-            0,
-            1,
-        );
-        var found = std.ArrayList(u8).init(allocator);
-        defer found.deinit();
 
         // std.debug.print("Checking horizontally...\n", .{});
         for (0..FILE_LEN) |row| {
-            word_count += try count_iter(&multi_iterator, &found, row, 0);
+            const vertical_check = row < FILE_LEN - TARGET_LENGTH + 1;
+            for (0..FILE_WIDTH) |col| {
+                const horizontal_check = col < FILE_WIDTH - TARGET_LENGTH + 1;
+                // Horizontal check
+                if (horizontal_check) {
+                    const is_valid_forwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row][col + offset] != word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid forwards horizontal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    const is_valid_backwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row][col + offset] != back_word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid backwards horizontal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    if (is_valid_forwards or is_valid_backwards) {
+                        word_count += 1;
+                    }
+                }
+                // Vertical check
+                if (vertical_check) {
+                    const is_valid_forwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col] != word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid forwards vertical at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    const is_valid_backwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col] != back_word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid backwards vertical at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    if (is_valid_forwards or is_valid_backwards) {
+                        word_count += 1;
+                    }
+                }
+                // Diagonal check down-right
+                if (horizontal_check and vertical_check) {
+                    const is_valid_forwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col + offset] != word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid forwards diagonal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    const is_valid_backwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col + offset] != back_word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid backwards diagonal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    if (is_valid_forwards or is_valid_backwards) {
+                        word_count += 1;
+                    }
+                }
+                // Diagonal check down-left
+                if (vertical_check and col >= TARGET_LENGTH - 1) {
+                    const is_valid_forwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col - offset] != word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid forwards diagonal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    const is_valid_backwards = blk: {
+                        for (0..TARGET_LENGTH) |offset| {
+                            if (lines[row + offset][col - offset] != back_word[offset]) {
+                                break :blk false;
+                            }
+                        }
+                        // print("Found valid backwards diagonal at {d}, {d}\n", .{ row, col });
+                        break :blk true;
+                    };
+                    if (is_valid_forwards or is_valid_backwards) {
+                        word_count += 1;
+                    }
+                }
+            }
         }
 
-        //  Loop through each character vertically (top->bottom) and search for xmas or samx
-        // std.debug.print("Checking vertically...\n", .{});
-        multi_iterator.changeAdvance(1, 0);
-        for (0..FILE_WIDTH) |col| {
-            word_count += try count_iter(&multi_iterator, &found, 0, col);
-        }
-
-        //  Loop through each character diagonally (down-right) and search for xmas or smax
-        multi_iterator.changeAdvance(1, 1);
-        // std.debug.print("Checking diagonally down-right, row 0...\n", .{});
-        for (0..FILE_WIDTH) |col| {
-            word_count += try count_iter(&multi_iterator, &found, 0, col);
-        }
-        // std.debug.print("Checking diagonally down-right, col 0...\n", .{});
-        for (1..FILE_LEN) |row| {
-            word_count += try count_iter(&multi_iterator, &found, row, 0);
-        }
-
-        //  Loop through each character diagonally (up-left) and search for xmas or smax
-        // std.debug.print("Checking diagonally up-left, row {d}...\n", .{FILE_LEN - 1});
-        multi_iterator.changeAdvance(-1, -1);
-        for (0..FILE_WIDTH) |col| {
-            word_count += try count_iter(&multi_iterator, &found, FILE_LEN - 1, col);
-        }
-        // std.debug.print("Checking diagonally up-left, col {d}...\n", .{FILE_WIDTH - 1});
-        for (0..FILE_LEN - 1) |row| {
-            word_count += try count_iter(&multi_iterator, &found, row, FILE_WIDTH - 1);
-        }
         std.debug.print("Answer #1: {d}\n", .{word_count});
     }
 
@@ -124,56 +188,57 @@ fn count_iter(multi_iterator: anytype, list: *std.ArrayList(u8), new_row: usize,
     return count;
 }
 
-fn Iterator2D(comptime T: type, comptime length: usize, comptime width: usize) type {
-    return struct {
-        grid: [length][width]T,
-        curr_row: usize,
-        curr_col: usize,
-        advance_row: i8,
-        advance_col: i8,
-        ended: bool,
-        const Self = @This();
-
-        pub fn init(grid: [length][width]T, start_row: usize, start_col: usize, row_change: i8, col_change: i8) !Self {
-            if (row_change == 0 and col_change == 0) {
-                return error.InfiniteIterator;
-            }
-            return Self{
-                .grid = grid,
-                .curr_row = start_row,
-                .curr_col = start_col,
-                .advance_row = row_change,
-                .advance_col = col_change,
-                .ended = false,
-            };
-        }
-
-        pub fn next(self: *Self) ?T {
-            if (self.ended) {
-                return null;
-            }
-            const current_val = self.grid[self.curr_row][self.curr_col];
-
-            const next_row = @as(isize, @intCast(self.curr_row)) + self.advance_row;
-            const next_col = @as(isize, @intCast(self.curr_col)) + self.advance_col;
-
-            if (next_row < 0 or next_row >= length or next_col < 0 or next_col >= width) {
-                self.ended = true;
-            } else {
-                self.curr_row = @as(usize, @intCast(next_row));
-                self.curr_col = @as(usize, @intCast(next_col));
-            }
-            return current_val;
-        }
-        pub fn resetStart(self: *Self, new_start_row: usize, new_start_col: usize) void {
-            self.ended = false;
-            self.curr_row = new_start_row;
-            self.curr_col = new_start_col;
-        }
-        pub fn changeAdvance(self: *Self, new_advance_row: i8, new_advance_col: i8) void {
-            self.ended = false;
-            self.advance_row = new_advance_row;
-            self.advance_col = new_advance_col;
-        }
-    };
-}
+//// This was funny but ultimately not worth it...
+// fn Iterator2D(comptime T: type, comptime length: usize, comptime width: usize) type {
+//     return struct {
+//         grid: [length][width]T,
+//         curr_row: usize,
+//         curr_col: usize,
+//         advance_row: i8,
+//         advance_col: i8,
+//         ended: bool,
+//         const Self = @This();
+//
+//         pub fn init(grid: [length][width]T, start_row: usize, start_col: usize, row_change: i8, col_change: i8) !Self {
+//             if (row_change == 0 and col_change == 0) {
+//                 return error.InfiniteIterator;
+//             }
+//             return Self{
+//                 .grid = grid,
+//                 .curr_row = start_row,
+//                 .curr_col = start_col,
+//                 .advance_row = row_change,
+//                 .advance_col = col_change,
+//                 .ended = false,
+//             };
+//         }
+//
+//         pub fn next(self: *Self) ?T {
+//             if (self.ended) {
+//                 return null;
+//             }
+//             const current_val = self.grid[self.curr_row][self.curr_col];
+//
+//             const next_row = @as(isize, @intCast(self.curr_row)) + self.advance_row;
+//             const next_col = @as(isize, @intCast(self.curr_col)) + self.advance_col;
+//
+//             if (next_row < 0 or next_row >= length or next_col < 0 or next_col >= width) {
+//                 self.ended = true;
+//             } else {
+//                 self.curr_row = @as(usize, @intCast(next_row));
+//                 self.curr_col = @as(usize, @intCast(next_col));
+//             }
+//             return current_val;
+//         }
+//         pub fn resetStart(self: *Self, new_start_row: usize, new_start_col: usize) void {
+//             self.ended = false;
+//             self.curr_row = new_start_row;
+//             self.curr_col = new_start_col;
+//         }
+//         pub fn changeAdvance(self: *Self, new_advance_row: i8, new_advance_col: i8) void {
+//             self.ended = false;
+//             self.advance_row = new_advance_row;
+//             self.advance_col = new_advance_col;
+//         }
+//     };
+// }
